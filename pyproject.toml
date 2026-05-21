@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "egress-security"
+version = "0.1.0"
+description = "Runtime security layer for AI agents: intercept and govern outbound calls before they leave the process."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Egress Security contributors" }]
+keywords = ["ai-agents", "security", "guardrails", "policy", "egress"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
+]
+dependencies = [
+  "wrapt>=1.15,<2",
+  "PyYAML>=6.0,<7",
+]
+
+[project.optional-dependencies]
+boto3 = ["boto3>=1.28,<2", "botocore>=1.31,<2"]
+github = ["PyGithub>=2.1,<3"]
+slack = ["slack_sdk>=3.21,<4"]
+http = ["requests>=2.31,<3", "httpx>=0.25,<1"]
+dev = [
+  "pytest>=7.4,<9",
+  "boto3>=1.28,<2",
+  "botocore>=1.31,<2",
+  "PyGithub>=2.1,<3",
+  "slack_sdk>=3.21,<4",
+  "requests>=2.31,<3",
+  "httpx>=0.25,<1",
+  "responses>=0.24,<1",
+  "respx>=0.20,<1",
+]
+
+[project.urls]
+Homepage = "https://github.com/egress-security/egress-security"
+Issues = "https://github.com/egress-security/egress-security/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

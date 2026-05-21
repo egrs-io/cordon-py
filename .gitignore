@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.Python
+build/
+dist/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual envs
+.venv/
+venv/
+env/
+.python-version
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Runtime
+egress-audit.jsonl
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
