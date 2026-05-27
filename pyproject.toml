@@ -43,6 +43,9 @@ dev = [
   "respx>=0.20,<1",
 ]
 
+[project.scripts]
+egress-mcp = "egress_mcp.server:main"
+
 [project.urls]
 Homepage = "https://github.com/egress-security/egress-security"
 Issues = "https://github.com/egress-security/egress-security/issues"
