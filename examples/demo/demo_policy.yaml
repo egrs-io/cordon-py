@@ -1,0 +1,30 @@
+version: 1
+default: allow
+
+rules:
+  - id: block-github-repo-delete
+    when:
+      vendor: github
+      method: DELETE
+      path: '^/repos/[^/]+/[^/]+$'
+    action: deny
+    reason: "Repository deletion is destructive and irreversible."
+
+  - id: block-secret-exfiltration
+    when:
+      vendor: http
+      body_matches: '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9-]{20,}|sk-[A-Za-z0-9]{20,})'
+    action: deny
+    reason: "Outbound request body contains a credential pattern."
+
+  - id: block-unknown-egress
+    when:
+      vendor: http
+      host_not_in:
+        - api.github.com
+        - '*.amazonaws.com'
+        - slack.com
+        - pypi.org
+        - registry.npmjs.org
+    action: deny
+    reason: "Outbound HTTP to a host that is not on the allowlist."
