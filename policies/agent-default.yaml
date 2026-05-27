@@ -1,0 +1,64 @@
+version: 1
+default: allow
+
+# Default policy pack for egress-security v0.1.
+#
+# Rules are evaluated in order. Deny wins: if any rule matches with action
+# deny, the call is blocked regardless of any earlier allow match.
+
+rules:
+  - id: block-github-repo-delete
+    when:
+      vendor: github
+      method: DELETE
+      path: '^/repos/[^/]+/[^/]+$'
+    action: deny
+    reason: "Repository deletion is destructive and irreversible."
+
+  - id: block-github-ref-rewrite
+    when:
+      vendor: github
+      method: PATCH
+      path: '^/repos/[^/]+/[^/]+/git/refs/'
+    action: deny
+    reason: "Rewriting git refs can destroy history (force-push)."
+
+  - id: block-aws-terminate
+    when:
+      vendor: 'aws:ec2'
+      operation: '^TerminateInstances$'
+    action: deny
+    reason: "Terminating EC2 instances is destructive."
+
+  - id: block-aws-deletes
+    when:
+      vendor: '^aws:'
+      operation: '^Delete'
+    action: deny
+    reason: "Destructive AWS delete operation."
+
+  - id: block-aws-iam-writes
+    when:
+      vendor: 'aws:iam'
+      operation: '^(Create|Update|Put|Attach|Detach|Delete)'
+    action: deny
+    reason: "IAM modifications can escalate privilege."
+
+  - id: block-secret-exfiltration
+    when:
+      vendor: http
+      body_matches: '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9-]{20,}|sk-[A-Za-z0-9]{20,})'
+    action: deny
+    reason: "Outbound request body contains a credential pattern."
+
+  - id: block-unknown-egress
+    when:
+      vendor: http
+      host_not_in:
+        - api.github.com
+        - slack.com
+        - '*.amazonaws.com'
+        - registry.npmjs.org
+        - pypi.org
+    action: deny
+    reason: "Outbound HTTP to a host that is not on the allowlist."
