@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: pytest (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and dev extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest -ra
+
+      - name: Smoke-import with no SDKs installed
+        # Verifies acceptance criterion: `import egress_security` works
+        # even when none of boto3/PyGithub/slack_sdk/requests/httpx are present.
+        run: |
+          python -m venv /tmp/bare
+          /tmp/bare/bin/pip install --upgrade pip
+          /tmp/bare/bin/pip install .
+          /tmp/bare/bin/python -c "import egress_security; egress_security.uninstall(); print('bare import OK')"

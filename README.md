@@ -1,0 +1,183 @@
+# Egress Security
+
+> Runtime security for AI agents — stops dangerous actions **before they leave the process**.
+
+Egress Security is a Python library that wraps the SDKs an AI agent uses
+(`boto3`, `PyGithub`, `slack_sdk`, `requests`, `httpx`) and evaluates every
+outbound call against a YAML policy. Destructive actions — deleting a
+repository, terminating EC2 instances, attaching IAM policies, exfiltrating
+credentials over HTTP — are blocked at the chokepoint and audited.
+
+**One line activates it:**
+
+```python
+import egress_security
+egress_security.init()
+```
+
+After that, any patched SDK call goes through the policy. Allowed calls
+behave normally; denied calls raise `EgressSecurityDenied` and are recorded
+to a JSONL audit log.
+
+---
+
+## Status
+
+**v0.1** — runs the canonical before/after demo (see below). API and policy
+schema are subject to change.
+
+## Install
+
+```bash
+pip install -e ".[dev]"     # for local dev with all SDK extras and tests
+```
+
+Runtime dependencies are minimal: only `wrapt` and `PyYAML`. The SDKs
+(`boto3`, `PyGithub`, `slack_sdk`, `httpx`, `requests`) are optional extras —
+the package imports and runs even if none of them are installed.
+
+## What gets intercepted
+
+One chokepoint per SDK. If the SDK isn't installed, the shim silently skips.
+If the chokepoint's signature has changed in a newer SDK version, the shim
+logs a warning and leaves the SDK unpatched rather than crashing the host
+application.
+
+| SDK         | Chokepoint                                                       | Vendor key    |
+| ----------- | ---------------------------------------------------------------- | ------------- |
+| boto3       | `botocore.client.BaseClient._make_api_call`                      | `aws:<svc>`   |
+| PyGithub    | `github.Requester.Requester.requestJsonAndCheck`                 | `github`      |
+| slack_sdk   | `slack_sdk.web.base_client.BaseClient.api_call`                  | `slack`       |
+| requests    | `requests.sessions.Session.request` (catch-all)                  | `http`        |
+| httpx       | `httpx.Client.send` and `httpx.AsyncClient.send` (catch-all)     | `http`        |
+
+The catch-all shims (`requests`, `httpx`) defer to whichever vendor-specific
+shim is already governing the call, so PyGithub → requests doesn't double-audit.
+
+## Policy
+
+Plain YAML. A list of rules; deny rules win; default is configurable.
+
+```yaml
+version: 1
+default: allow
+rules:
+  - id: block-github-repo-delete
+    when: { vendor: github, method: DELETE, path: '^/repos/[^/]+/[^/]+$' }
+    action: deny
+    reason: "Repository deletion is destructive and irreversible."
+
+  - id: block-aws-iam-writes
+    when: { vendor: 'aws:iam', operation: '^(Create|Update|Put|Attach|Detach|Delete)' }
+    action: deny
+    reason: "IAM modifications can escalate privilege."
+
+  - id: block-secret-exfiltration
+    when:
+      vendor: http
+      body_matches: '(AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|sk-ant-[A-Za-z0-9-]{20,})'
+    action: deny
+    reason: "Outbound body contains a credential pattern."
+
+  - id: block-unknown-egress
+    when:
+      vendor: http
+      host_not_in: ['api.github.com', 'slack.com', '*.amazonaws.com']
+    action: deny
+    reason: "Outbound HTTP to a host that is not on the allowlist."
+```
+
+Supported `when` predicates:
+
+| predicate      | type                | matches when…                                        |
+| -------------- | ------------------- | ---------------------------------------------------- |
+| `vendor`       | regex (`re.search`) | call's vendor key matches                            |
+| `method`       | regex               | HTTP method matches                                  |
+| `operation`    | regex               | SDK operation name matches                           |
+| `path`         | regex               | URL path matches                                     |
+| `host`         | regex               | URL host matches                                     |
+| `body_matches` | regex               | serialized request body matches anywhere             |
+| `host_not_in`  | list of patterns    | host is NOT in the allowlist (`*` wildcards allowed) |
+
+A rule matches when **all** of its predicates match. Anchor regexes
+explicitly (`^…$`) for exact matches. See `policies/agent-default.yaml`
+for the full default pack.
+
+## Public API
+
+```python
+egress_security.init(
+    policy = "policies/agent-default.yaml",   # path or in-memory dict
+    audit  = "egress-audit.jsonl",             # path; None disables file sink
+    audit_stdout = False,                       # also write to stdout
+    mode   = "enforce",                         # "enforce" blocks; "monitor" logs only
+    on_error = "open",                          # internal-error behavior (see below)
+)
+
+egress_security.uninstall()                     # remove all patches
+
+class EgressSecurityDenied(EgressSecurityError):
+    vendor: str
+    operation: str | None
+    rule_id: str | None
+    reason: str | None
+```
+
+**Modes**
+
+- `enforce` (default): denied calls raise `EgressSecurityDenied`.
+- `monitor`: every call is audited with its decision, but nothing is blocked.
+
+**`on_error`** governs what happens if egress-security's *own* code throws an
+internal error (a bug, a malformed policy, an audit write failure):
+
+- `open` (default): log a warning and call through, so the host application
+  never breaks because of us.
+- `closed`: re-raise the internal error.
+
+A policy `deny` in `enforce` mode always raises — `on_error` only affects
+internal errors.
+
+## Audit
+
+Each call writes one JSON object per line to the configured sink:
+
+```json
+{"ts":"2026-05-27T18:14:09Z","session_id":"a3f1c9b2","vendor":"github",
+ "operation":"DELETE /repos/acme/widget","decision":"deny",
+ "reason":"Repository deletion is destructive and irreversible.",
+ "rule_id":"block-github-repo-delete","args":null}
+```
+
+Anything matching a known secret pattern in the recorded args is replaced
+with `***` before serialization.
+
+## Run the demo
+
+```bash
+python examples/demo/run_demo.py
+```
+
+It runs the "toxic chain" twice — an AI agent reads a poisoned GitHub
+issue and tries to delete a repo and exfiltrate a credential. The first
+pass has egress-security off; the second has it on. The contrast is the
+whole pitch. See `examples/demo/README.md` for details.
+
+## Tests
+
+```bash
+pytest
+```
+
+84 tests across:
+
+- `test_policy.py` — YAML loader and matcher
+- `test_audit.py` — JSONL writer and redaction
+- `test_canonical.py` — canonical request shape
+- `test_core.py` — init, uninstall, reentrancy guard, modes
+- `test_<sdk>_shim.py` — one file per shim, deny + allow + idempotency + uninstall
+- `test_end_to_end.py` — every default-policy rule exercised end-to-end
+
+## License
+
+Apache-2.0.
