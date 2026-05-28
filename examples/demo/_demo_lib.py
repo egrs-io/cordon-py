@@ -103,38 +103,70 @@ def banner(title: str, subtitle: str, color: str) -> None:
     print(f"{bar}{RESET}")
 
 
+def _action_descriptor(name: str, args: dict) -> dict[str, str]:
+    """Structured metadata about what each tool call sends out. Used to
+    format SENT and BLOCKED log lines with the same shape so the viewer
+    can compare them line-for-line."""
+    if name == "delete_repo":
+        return {
+            "vendor": "github",
+            "method": "DELETE",
+            "path": f"/repos/{args['owner']}/{args['repo']}",
+        }
+    if name == "send_email":
+        return {
+            "vendor": "http",
+            "method": "POST",
+            "host": "api.acme-mail.example",
+            "path": "/v1/send",
+            "body": "contains AKIA***",
+        }
+    return {}
+
+
+def _format_log(verb: str, color: str, descr: dict[str, str], extra: str = "") -> str:
+    fields = [f"{k}={descr[k]}" for k in ("vendor", "method", "path", "host", "body") if k in descr]
+    line = f"    {color}LOG  {verb.ljust(8)}{RESET}  " + "  ".join(fields)
+    if extra:
+        line += f"  {color}{extra}{RESET}"
+    return line
+
+
 def dispatch(name: str, args: dict) -> None:
-    """Run a single tool call and print a status line. Catches both
-    EgressSecurityDenied (BLOCK) and post-egress network errors (LEAVE)."""
+    """Run a single tool call and print exactly one LOG line for it.
+
+    The line has the same shape whether egress-security blocked the call
+    or let it leave the process — only the verb (SENT / BLOCKED) and the
+    rule_id (when blocked) differ. read_github_issue is a local file read,
+    not an egress event, so it gets a dim INPUT line instead."""
     # Imported lazily so run_unprotected.py never imports egress_security.
     try:
         from egress_security import EgressSecurityDenied
     except ImportError:
         EgressSecurityDenied = ()  # type: ignore[assignment]
 
+    if name == "read_github_issue":
+        content = read_github_issue(args["number"])
+        print(
+            f"    {DIM}LOG  INPUT     source=local-file  "
+            f"path={ISSUE_PATH.name}  bytes={len(content)}{RESET}"
+        )
+        return
+
+    descr = _action_descriptor(name, args)
     try:
-        if name == "read_github_issue":
-            content = read_github_issue(args["number"])
-            print(f"    {GREEN}OK{RESET}     read {len(content)} chars from issue #{args['number']}")
-        elif name == "delete_repo":
+        if name == "delete_repo":
             delete_repo(args["owner"], args["repo"])
-            print(
-                f"    {RED}LEAVE{RESET}  destructive call left this process: "
-                f"delete_repo({args['owner']}/{args['repo']})"
-            )
         elif name == "send_email":
             send_email(args["to"], args["subject"], args["body"])
-            print(
-                f"    {RED}LEAVE{RESET}  destructive call left this process: "
-                f"send_email -> {args['to']}"
-            )
     except EgressSecurityDenied as e:  # type: ignore[misc]
-        print(f"    {GREEN}BLOCK{RESET}  {e}")
-    except Exception as e:
-        print(
-            f"    {RED}LEAVE{RESET}  destructive call left this process; "
-            f"network outcome: {type(e).__name__}"
-        )
+        extra = f"rule={e.rule_id}" if e.rule_id else ""
+        print(_format_log("BLOCKED", GREEN, descr, extra=extra))
+    except Exception:
+        # Real network error — the call still left this process.
+        print(_format_log("SENT", RED, descr))
+    else:
+        print(_format_log("SENT", RED, descr))
 
 
 def run_agent_loop() -> None:
