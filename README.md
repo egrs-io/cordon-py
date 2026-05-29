@@ -43,16 +43,26 @@ If the chokepoint's signature has changed in a newer SDK version, the shim
 logs a warning and leaves the SDK unpatched rather than crashing the host
 application.
 
-| SDK         | Chokepoint                                                       | Vendor key    |
-| ----------- | ---------------------------------------------------------------- | ------------- |
-| boto3       | `botocore.client.BaseClient._make_api_call`                      | `aws:<svc>`   |
-| PyGithub    | `github.Requester.Requester.requestJsonAndCheck`                 | `github`      |
-| slack_sdk   | `slack_sdk.web.base_client.BaseClient.api_call`                  | `slack`       |
-| requests    | `requests.sessions.Session.request` (catch-all)                  | `http`        |
-| httpx       | `httpx.Client.send` and `httpx.AsyncClient.send` (catch-all)     | `http`        |
+| SDK / runtime | Chokepoint                                                       | Vendor key    |
+| ------------- | ---------------------------------------------------------------- | ------------- |
+| boto3         | `botocore.client.BaseClient._make_api_call`                      | `aws:<svc>`   |
+| PyGithub      | `github.Requester.Requester.requestJsonAndCheck`                 | `github`      |
+| slack_sdk     | `slack_sdk.web.base_client.BaseClient.api_call`                  | `slack`       |
+| requests      | `requests.sessions.Session.request` (catch-all)                  | `http`        |
+| httpx         | `httpx.Client.send` and `httpx.AsyncClient.send` (catch-all)     | `http`        |
+| subprocess    | `subprocess.Popen.__init__` (bypass guard)                       | `subprocess`  |
 
 The catch-all shims (`requests`, `httpx`) defer to whichever vendor-specific
 shim is already governing the call, so PyGithub → requests doesn't double-audit.
+
+The `subprocess` shim is a **bypass guard**: an agent that can
+`subprocess.run(["curl", ...])` or `subprocess.run(["gh", "repo", "delete", ...])`
+would walk around every SDK shim. The default policy denies shell-out to
+known network binaries (curl, wget, gh, aws, gcloud, az, kubectl, ssh, ...)
+plus the network subcommands of `git` and `docker`. The philosophy: agents
+should use the SDK or an MCP server; shelling out to a network CLI is by
+definition a policy bypass. *Known gap:* `os.system()` does not go through
+`subprocess.Popen` and is not covered.
 
 ## Policy
 

@@ -19,6 +19,7 @@ _SHIM_MODULES = (
     "egress_security.shims.boto3_shim",
     "egress_security.shims.github_shim",
     "egress_security.shims.slack_shim",
+    "egress_security.shims.subprocess_shim",
     "egress_security.shims.requests_shim",
     "egress_security.shims.httpx_shim",
 )

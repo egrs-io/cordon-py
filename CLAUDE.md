@@ -12,6 +12,8 @@ One compelling before/after demo (the "toxic chain"): an AI agent reads a GitHub
 
 `shims/*` each wrap a single chokepoint in one SDK using `wrapt.wrap_function_wrapper` (the OpenTelemetry pattern). The wrapper builds a **canonical request** (`canonical.py`) — vendor, operation/method, path, host, params/body — and hands it to `policy.evaluate()`. The decision is written to the JSONL audit log (`audit.py`) and either passes through (`allow`) or raises `EgressSecurityDenied` (`deny`). All shims must: degrade gracefully (silently skip if the SDK is absent or the chokepoint signature has changed), be idempotent, and honor a thread-local reentrancy guard so one logical call (e.g. PyGithub → requests) is only evaluated once.
 
+The `subprocess` shim is the bypass guard. SDK shims only matter if every path *out* of the process is covered; an agent that can `subprocess.run(["curl", ...])` walks around them. The default policy denies shell-out to known network binaries (curl, wget, gh, aws, gcloud, kubectl, ssh, ...) and the network subcommands of git/docker. The premise: agents should use the SDK or an MCP server.
+
 ## Build order (demo-driven)
 
 1. `policy.py` + tests

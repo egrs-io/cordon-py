@@ -62,3 +62,30 @@ rules:
         - pypi.org
     action: deny
     reason: "Outbound HTTP to a host that is not on the allowlist."
+
+  # ----- subprocess shell-out bypass prevention -----
+  # The SDK shims above don't help if the agent shells out to a network CLI.
+  # Deny shell-out to known network binaries; agents must use the SDK or MCP.
+
+  - id: block-network-cli-shellout
+    when:
+      vendor: subprocess
+      operation: '^(curl|wget|gh|aws|gcloud|az|kubectl|ssh|scp|sftp|rsync|nc|ncat|netcat|socat|nmap|ftp|telnet|http|httpie)$'
+    action: deny
+    reason: "Use the corresponding SDK or MCP server -- shelling out to a network CLI bypasses egress policy."
+
+  - id: block-git-network-shellout
+    when:
+      vendor: subprocess
+      operation: '^git$'
+      body_matches: '\b(push|fetch|pull|clone|fetch-pack|send-pack|ls-remote|remote)\b'
+    action: deny
+    reason: "Use the GitHub SDK for network git operations; subprocess git bypasses policy."
+
+  - id: block-docker-network-shellout
+    when:
+      vendor: subprocess
+      operation: '^docker$'
+      body_matches: '\b(pull|push|login|logout|search)\b'
+    action: deny
+    reason: "docker pull/push/login reach the registry; use the SDK or pre-pull images."

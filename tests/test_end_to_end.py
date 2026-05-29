@@ -176,3 +176,36 @@ def test_default_allows_known_host_without_secrets(_isolated):
         and e["operation"] == "GET /repos/a/b"
         for e in lines
     )
+
+
+# ---------------------------------------------------------------- subprocess
+
+def test_default_blocks_curl_shellout(_isolated):
+    import subprocess
+
+    with pytest.raises(EgressSecurityDenied) as exc:
+        subprocess.run(["curl", "https://example.com"])
+    assert exc.value.rule_id == "block-network-cli-shellout"
+
+
+def test_default_blocks_git_push_shellout(_isolated):
+    import subprocess
+
+    with pytest.raises(EgressSecurityDenied) as exc:
+        subprocess.run(["git", "push", "origin", "main"])
+    assert exc.value.rule_id == "block-git-network-shellout"
+
+
+def test_default_blocks_docker_pull_shellout(_isolated):
+    import subprocess
+
+    with pytest.raises(EgressSecurityDenied) as exc:
+        subprocess.run(["docker", "pull", "alpine"])
+    assert exc.value.rule_id == "block-docker-network-shellout"
+
+
+def test_default_allows_local_subprocess(_isolated):
+    import subprocess
+
+    # `true` is local, no network, and not in any deny rule.
+    assert subprocess.run(["true"]).returncode == 0
