@@ -151,15 +151,25 @@ def is_active() -> bool:
 
 
 def api_url() -> str | None:
-    """Return the ``CORDON_API_URL`` env var value loaded at ``init()`` time,
-    or None. Intended for use by sink implementations."""
-    return _config.api_url if _config is not None else None
+    """Return the ``CORDON_API_URL`` env var value.
+
+    Reads from the active config when ``init()`` has run; falls back to
+    the raw env var otherwise so a :class:`~cordon.sinks.Sink` constructed
+    *before* ``init()`` (or *during* it, via entry-point discovery) can
+    still pick up the value."""
+    if _config is not None and _config.api_url is not None:
+        return _config.api_url
+    val = (os.environ.get("CORDON_API_URL") or "").strip()
+    return val or None
 
 
 def api_key() -> str | None:
-    """Return the ``CORDON_API_KEY`` env var value loaded at ``init()`` time,
-    or None. Intended for use by sink implementations."""
-    return _config.api_key if _config is not None else None
+    """Return the ``CORDON_API_KEY`` env var value. Same fallback semantics
+    as :func:`api_url`."""
+    if _config is not None and _config.api_key is not None:
+        return _config.api_key
+    val = (os.environ.get("CORDON_API_KEY") or "").strip()
+    return val or None
 
 
 @contextmanager
