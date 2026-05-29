@@ -24,6 +24,7 @@ rules:
         - api.github.com
         - '*.amazonaws.com'
         - slack.com
+        - hooks.slack.com
         - pypi.org
         - registry.npmjs.org
     action: deny

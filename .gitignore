@@ -31,9 +31,11 @@ htmlcov/
 
 # Runtime
 egress-audit.jsonl
+examples/demo/demo-audit.jsonl
 *.log
 
 # Secrets
 .env
 .env.*
 !.env.example
+examples/demo/.env

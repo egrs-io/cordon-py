@@ -1,13 +1,13 @@
 """Run the agent WITHOUT egress-security.
 
 Use this in a live demo as the "before" half of the before/after.
-The agent reads the poisoned issue and decides to delete a repo and
-exfiltrate an AWS key. Because egress-security is not active, the
-destructive calls leave this process.
+With --live the agent actually deletes a fresh disposable GitHub repo
+and posts to a real Slack webhook.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 
 from _demo_lib import (
@@ -17,22 +17,53 @@ from _demo_lib import (
     RESET,
     YELLOW,
     banner,
+    configure,
+    get_config,
     run_agent_loop,
 )
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help=(
+            "Run against real GitHub and Slack. Requires env vars "
+            "EGRESS_DEMO_GITHUB_TOKEN and EGRESS_DEMO_SLACK_WEBHOOK. "
+            "Auto-creates a disposable repo to delete."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
+    configure(live=args.live)
+
+    mode_tag = "LIVE" if args.live else "FAKE"
+    subtitle = "the agent's destructive decisions reach the network"
+    if args.live:
+        subtitle += f"  (target repo: {get_config().github_target})"
     banner(
-        "UNPROTECTED  -  egress-security is NOT initialized",
-        "the agent's destructive decisions reach the network",
+        f"UNPROTECTED [{mode_tag}]  -  egress-security is NOT initialized",
+        subtitle,
         YELLOW,
     )
     run_agent_loop()
-    print(
-        f"\n  {BOLD}{RED}Both destructive calls left this process.{RESET}\n"
-        f"  {DIM}With real credentials, this would be a real incident: "
-        f"a deleted repo and a leaked AWS key.{RESET}\n"
-    )
+    if args.live:
+        closing = (
+            f"\n  {BOLD}{RED}Both destructive calls actually happened.{RESET}\n"
+            f"  {DIM}Refresh the repo URL to confirm it's gone, and check "
+            f"your Slack channel for the leaked key.{RESET}\n"
+        )
+    else:
+        closing = (
+            f"\n  {BOLD}{RED}Both destructive calls left this process.{RESET}\n"
+            f"  {DIM}With real credentials, this would be a real incident: "
+            f"a deleted repo and a leaked AWS key.{RESET}\n"
+        )
+    print(closing)
     return 0
 
 
