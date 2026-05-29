@@ -206,8 +206,14 @@ def govern(canonical: CanonicalRequest, *, is_catch_all: bool = False) -> None:
         _handle_internal_error("audit write failed", canonical)
         entry = None
     if entry is not None:
-        for sink in cfg.sinks:
-            safe_record(sink, entry)
+        # Wrap sink calls in vendor_scope so any HTTP (or other catch-all)
+        # the sink itself makes while shipping events is not re-intercepted
+        # by the requests/httpx shims. Without this, a sink that POSTs to
+        # cordon-api would be re-audited, fed back into the sink loop,
+        # and recurse forever.
+        with vendor_scope():
+            for sink in cfg.sinks:
+                safe_record(sink, entry)
     if decision.action == "deny" and cfg.mode == "enforce":
         raise CordonDenied(
             vendor=canonical.vendor,

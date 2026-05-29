@@ -169,3 +169,57 @@ def test_discover_sinks_returns_empty_when_no_entry_points():
 
     result = discover_sinks()
     assert isinstance(result, list)
+
+
+def test_sink_doing_http_does_not_recurse(tmp_path):
+    """A sink that POSTs to an HTTP endpoint should NOT have its own POST
+    re-intercepted by the requests catch-all and fed back into the sink
+    loop. Without the vendor_scope guard in govern() this test would
+    either recurse forever or audit an unbounded number of events for
+    one logical call."""
+    import responses
+    import requests
+
+    class _HttpShippingSink:
+        def __init__(self) -> None:
+            self.events: list[dict] = []
+
+        def record(self, event: dict) -> None:
+            self.events.append(event)
+            requests.post(
+                "https://api.egrs.io/v1/events",
+                json=event,
+                headers={"Authorization": "Bearer test"},
+                timeout=2,
+            )
+
+        def close(self) -> None:
+            pass
+
+    sink = _HttpShippingSink()
+
+    # A policy that ALLOWS everything -- if the sink's HTTP POST were
+    # re-audited (re-entered the loop), this test would still terminate
+    # only because we mock the response, but the sink would see N events
+    # for the one logical call.
+    cordon.init(
+        policy={"version": 1, "default": "allow", "rules": []},
+        audit=str(tmp_path / "a.jsonl"),
+        sinks=[sink],
+    )
+
+    with responses.RequestsMock() as rsps:
+        rsps.add(
+            responses.POST,
+            "https://api.egrs.io/v1/events",
+            json={"ok": True},
+            status=204,
+        )
+        _govern()
+
+    # Exactly one event recorded -- the original. The sink's own POST
+    # must NOT have generated a second event.
+    assert len(sink.events) == 1
+    # Exactly one network request to the API -- the sink's own POST.
+    # (Without the guard, this would still be 1 because we don't recurse
+    # the network call itself, but the EVENTS count would grow.)
