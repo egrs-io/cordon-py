@@ -26,20 +26,6 @@ to a JSONL audit log.
 **v0.1** — runs the canonical before/after demo (see below). API and policy
 schema are subject to change. Not yet on PyPI; install from git (see below).
 
-## Project layout
-
-Cordon lives under the **[egrs-io](https://github.com/egrs-io)** GitHub
-organization (Egress Security). One repo per language SDK:
-
-| Repo                                                          | Language       | Status        |
-| ------------------------------------------------------------- | -------------- | ------------- |
-| [`cordon-py`](https://github.com/egrs-io/cordon-py)           | Python         | v0.1 — active |
-| [`cordon-js`](https://github.com/egrs-io/cordon-js)           | JavaScript/TS  | placeholder   |
-
-**Policies are language-agnostic.** The same YAML file works in every SDK,
-so a commercial deployment can maintain one central policy bundle for its
-whole agent fleet regardless of language. See [Policy](#policy) below.
-
 ## Install
 
 Until the first PyPI release, install directly from git:
