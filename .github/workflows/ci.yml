@@ -31,10 +31,10 @@ jobs:
         run: pytest -ra
 
       - name: Smoke-import with no SDKs installed
-        # Verifies acceptance criterion: `import egress_security` works
+        # Verifies acceptance criterion: `import cordon` works
         # even when none of boto3/PyGithub/slack_sdk/requests/httpx are present.
         run: |
           python -m venv /tmp/bare
           /tmp/bare/bin/pip install --upgrade pip
           /tmp/bare/bin/pip install .
-          /tmp/bare/bin/python -c "import egress_security; egress_security.uninstall(); print('bare import OK')"
+          /tmp/bare/bin/python -c "import cordon; cordon.uninstall(); print('bare import OK')"

@@ -2,8 +2,8 @@
 
 A separate script so it can be delivered as its own beat in a live demo:
 
-    1. run_unprotected.py    "watch what happens with no egress-security"
-    2. run_protected.py      "now watch with egress_security.init()"
+    1. run_unprotected.py    "watch what happens with no cordon-sdk"
+    2. run_protected.py      "now watch with cordon.init()"
     3. show_audit.py         "and every decision is recorded"
 """
 

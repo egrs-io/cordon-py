@@ -2,7 +2,7 @@
 
 Both `run_unprotected.py` and `run_protected.py` import from here so the
 agent loop, tools, and printing are identical between the two runs —
-the only difference between the runs is whether `egress_security.init()`
+the only difference between the runs is whether `cordon.init()`
 has been called.
 
 Two modes:
@@ -16,8 +16,8 @@ Two modes:
     `setup_repo.sh`, then in the unprotected run actually deletes it and
     posts to a real Slack webhook. The protected run is blocked before
     any of that happens. Required env vars:
-        EGRESS_DEMO_GITHUB_TOKEN     PAT with delete_repo scope
-        EGRESS_DEMO_SLACK_WEBHOOK    https://hooks.slack.com/services/...
+        CORDON_DEMO_GITHUB_TOKEN     PAT with delete_repo scope
+        CORDON_DEMO_SLACK_WEBHOOK    https://hooks.slack.com/services/...
 """
 
 from __future__ import annotations
@@ -73,21 +73,21 @@ def configure(*, live: bool, create_repo: bool = True) -> None:
     global _config
     cfg = _Config(live=live)
     if live:
-        token = os.environ.get("EGRESS_DEMO_GITHUB_TOKEN", "").strip()
-        webhook = os.environ.get("EGRESS_DEMO_SLACK_WEBHOOK", "").strip()
+        token = os.environ.get("CORDON_DEMO_GITHUB_TOKEN", "").strip()
+        webhook = os.environ.get("CORDON_DEMO_SLACK_WEBHOOK", "").strip()
         missing = [
             name
             for name, val in (
-                ("EGRESS_DEMO_GITHUB_TOKEN", token),
-                ("EGRESS_DEMO_SLACK_WEBHOOK", webhook),
+                ("CORDON_DEMO_GITHUB_TOKEN", token),
+                ("CORDON_DEMO_SLACK_WEBHOOK", webhook),
             )
             if not val
         ]
         if missing:
             sys.exit(
                 f"--live requires env vars: {', '.join(missing)}\n"
-                f"  export EGRESS_DEMO_GITHUB_TOKEN=ghp_...\n"
-                f"  export EGRESS_DEMO_SLACK_WEBHOOK=https://hooks.slack.com/services/..."
+                f"  export CORDON_DEMO_GITHUB_TOKEN=ghp_...\n"
+                f"  export CORDON_DEMO_SLACK_WEBHOOK=https://hooks.slack.com/services/..."
             )
         cfg.github_token = token
         cfg.slack_webhook = webhook
@@ -225,9 +225,9 @@ def _format_log(verb: str, color: str, descr: dict[str, str], extra: str = "") -
 def dispatch(name: str, args: dict) -> None:
     """Run a single tool call and print exactly one LOG line for it."""
     try:
-        from egress_security import EgressSecurityDenied
+        from cordon import CordonDenied
     except ImportError:
-        EgressSecurityDenied = ()  # type: ignore[assignment]
+        CordonDenied = ()  # type: ignore[assignment]
 
     if name == "read_github_issue":
         content = read_github_issue(args["number"])
@@ -243,7 +243,7 @@ def dispatch(name: str, args: dict) -> None:
             delete_repo(args["owner"], args["repo"])
         elif name == "send_slack":
             send_slack(args["text"])
-    except EgressSecurityDenied as e:  # type: ignore[misc]
+    except CordonDenied as e:  # type: ignore[misc]
         extra = f"rule={e.rule_id}" if e.rule_id else ""
         print(_format_log("BLOCKED", GREEN, descr, extra=extra))
     except Exception:

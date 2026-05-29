@@ -3,16 +3,16 @@
 A wrapping MCP server that sits between an agent's MCP client and a real
 MCP server. We spawn the real server as a child process, pass JSON-RPC
 messages through over stdio, and govern every `tools/call` against the
-same policy engine `egress-security` uses for SDK interception.
+same policy engine `cordon-sdk` uses for SDK interception.
 
-Reuses `egress_security.policy`, `egress_security.canonical`, and
-`egress_security.audit` directly — no duplicated logic.
+Reuses `cordon.policy`, `cordon.canonical`, and
+`cordon.audit` directly — no duplicated logic.
 
 Usage:
-    egress-mcp --policy policies/agent-default.yaml -- python -m my_real_mcp_server
+    cordon-mcp --policy policies/agent-default.yaml -- python -m my_real_mcp_server
 
 Or as a Python module:
-    python -m egress_mcp --policy ./p.yaml -- <real-server-cmd> [args...]
+    python -m cordon_mcp --policy ./p.yaml -- <real-server-cmd> [args...]
 """
 
 from __future__ import annotations
@@ -25,11 +25,11 @@ import sys
 import threading
 from typing import IO, Any
 
-from egress_security.audit import AuditLogger
-from egress_security.canonical import CanonicalRequest
-from egress_security.policy import Policy, load_policy
+from cordon.audit import AuditLogger
+from cordon.canonical import CanonicalRequest
+from cordon.policy import Policy, load_policy
 
-_log = logging.getLogger("egress_mcp")
+_log = logging.getLogger("cordon_mcp")
 
 # JSON-RPC error code for "Internal error" -- closest match for a policy block.
 _DENY_ERROR_CODE = -32603
@@ -41,7 +41,7 @@ def _deny_response(request_id: Any, reason: str | None, rule_id: str | None) -> 
         "id": request_id,
         "error": {
             "code": _DENY_ERROR_CODE,
-            "message": f"egress-security denied: {reason or 'policy violation'}",
+            "message": f"cordon-sdk denied: {reason or 'policy violation'}",
             "data": {"rule_id": rule_id} if rule_id else {},
         },
     }
@@ -111,9 +111,9 @@ def _pump_server_to_client(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="egress-mcp",
+        prog="cordon-mcp",
         description=(
-            "Wrap an MCP server with egress-security policy enforcement. "
+            "Wrap an MCP server with cordon-sdk policy enforcement. "
             "All stdio JSON-RPC traffic is passed through; tools/call "
             "requests are evaluated against the policy before being forwarded."
         ),
@@ -123,8 +123,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--audit",
-        default="egress-mcp-audit.jsonl",
-        help="Path to JSONL audit log (default: egress-mcp-audit.jsonl).",
+        default="cordon-mcp-audit.jsonl",
+        help="Path to JSONL audit log (default: cordon-mcp-audit.jsonl).",
     )
     parser.add_argument(
         "server_command",

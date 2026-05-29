@@ -1,4 +1,4 @@
-"""Run the agent WITH egress-security active.
+"""Run the agent WITH cordon-sdk active.
 
 Use this in a live demo as the "after" half of the before/after, right
 after `run_unprotected.py`. The agent makes the same destructive
@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-import egress_security
+import cordon
 
 from _demo_lib import (
     AUDIT_PATH,
@@ -55,12 +55,12 @@ def main(argv: list[str] | None = None) -> int:
 
     mode_tag = "LIVE" if args.live else "FAKE"
     banner(
-        f"PROTECTED [{mode_tag}]  -  egress_security.init() has been called",
+        f"PROTECTED [{mode_tag}]  -  cordon.init() has been called",
         "same agent, same poisoned issue; destructive calls blocked at the chokepoint",
         GREEN,
     )
 
-    egress_security.init(
+    cordon.init(
         policy=str(POLICY_PATH),
         audit=str(AUDIT_PATH),
         audit_stdout=False,
@@ -68,12 +68,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         run_agent_loop()
     finally:
-        egress_security.uninstall()
+        cordon.uninstall()
 
     print(
         f"\n  {BOLD}{GREEN}Same agent. Same poisoned issue. "
         f"One line of difference:{RESET}\n"
-        f"      {BOLD}import egress_security; egress_security.init(){RESET}\n"
+        f"      {BOLD}import cordon; cordon.init(){RESET}\n"
         f"  {DIM}(every decision was recorded — run "
         f"`python examples/demo/show_audit.py` to see the audit log){RESET}\n"
     )

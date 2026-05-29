@@ -6,7 +6,7 @@
 # age, then deletes only the matches.
 #
 # Usage:
-#   export EGRESS_DEMO_GITHUB_TOKEN=ghp_...
+#   export CORDON_DEMO_GITHUB_TOKEN=ghp_...
 #   ./examples/demo/cleanup_repos.sh                # delete matches
 #   ./examples/demo/cleanup_repos.sh --dry-run      # show what would be deleted
 #
@@ -14,8 +14,8 @@
 #   MIN_AGE_HOURS=0 ./examples/demo/cleanup_repos.sh    # nuke all matches
 set -euo pipefail
 
-if [[ -z "${EGRESS_DEMO_GITHUB_TOKEN:-}" ]]; then
-  echo "error: EGRESS_DEMO_GITHUB_TOKEN is not set" >&2
+if [[ -z "${CORDON_DEMO_GITHUB_TOKEN:-}" ]]; then
+  echo "error: CORDON_DEMO_GITHUB_TOKEN is not set" >&2
   exit 2
 fi
 
@@ -31,7 +31,7 @@ min_age_hours="${MIN_AGE_HOURS:-1}"
 candidates=$(python3 - "$min_age_hours" <<'PY'
 import json, os, sys, urllib.request, urllib.error, datetime as dt
 
-token = os.environ["EGRESS_DEMO_GITHUB_TOKEN"]
+token = os.environ["CORDON_DEMO_GITHUB_TOKEN"]
 min_age_hours = float(sys.argv[1])
 cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=min_age_hours)
 
@@ -85,7 +85,7 @@ while IFS= read -r full_name; do
     http_code=$(curl -sS -o /dev/null -w "%{http_code}" \
       -X DELETE "https://api.github.com/repos/${full_name}" \
       -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${EGRESS_DEMO_GITHUB_TOKEN}" \
+      -H "Authorization: Bearer ${CORDON_DEMO_GITHUB_TOKEN}" \
       -H "X-GitHub-Api-Version: 2022-11-28")
     if [[ "$http_code" == "204" ]]; then
       echo "deleted: $full_name"

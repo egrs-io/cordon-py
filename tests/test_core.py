@@ -2,15 +2,15 @@ import json
 
 import pytest
 
-import egress_security
-from egress_security import _core
-from egress_security.canonical import CanonicalRequest
+import cordon
+from cordon import _core
+from cordon.canonical import CanonicalRequest
 
 
 @pytest.fixture(autouse=True)
 def _clean_state():
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 _BLOCK_DELETE_POLICY = {
@@ -35,7 +35,7 @@ def _init(tmp_path, **overrides):
         "on_error": "open",
     }
     kwargs.update(overrides)
-    egress_security.init(**kwargs)
+    cordon.init(**kwargs)
 
 
 def test_init_then_govern_allow(tmp_path):
@@ -47,7 +47,7 @@ def test_init_then_govern_allow(tmp_path):
 def test_init_then_govern_deny_raises_in_enforce(tmp_path):
     _init(tmp_path)
     req = CanonicalRequest(vendor="github", method="DELETE", path="/repos/a/b")
-    with pytest.raises(egress_security.EgressSecurityDenied) as exc:
+    with pytest.raises(cordon.CordonDenied) as exc:
         _core.govern(req)
     assert exc.value.vendor == "github"
     assert exc.value.rule_id == "block-delete"
@@ -96,14 +96,14 @@ def test_init_writes_audit_line(tmp_path):
 def test_uninstall_closes_audit_and_clears_config(tmp_path):
     _init(tmp_path)
     assert _core.is_active() is True
-    egress_security.uninstall()
+    cordon.uninstall()
     assert _core.is_active() is False
     # govern is now a no-op
     _core.govern(CanonicalRequest(vendor="github", method="DELETE"))
 
 
 def test_uninstall_safe_when_not_active():
-    egress_security.uninstall()  # no raise
+    cordon.uninstall()  # no raise
 
 
 def test_re_init_replaces_previous(tmp_path):
@@ -117,12 +117,12 @@ def test_re_init_replaces_previous(tmp_path):
 
 def test_invalid_mode_raises():
     with pytest.raises(ValueError):
-        egress_security.init(policy=_BLOCK_DELETE_POLICY, audit=None, mode="warn")
+        cordon.init(policy=_BLOCK_DELETE_POLICY, audit=None, mode="warn")
 
 
 def test_invalid_on_error_raises():
     with pytest.raises(ValueError):
-        egress_security.init(
+        cordon.init(
             policy=_BLOCK_DELETE_POLICY, audit=None, on_error="maybe"
         )
 
@@ -130,7 +130,7 @@ def test_invalid_on_error_raises():
 def test_denied_message_includes_vendor_operation_rule_reason(tmp_path):
     _init(tmp_path)
     req = CanonicalRequest(vendor="github", method="DELETE", path="/repos/a/b")
-    with pytest.raises(egress_security.EgressSecurityDenied) as exc:
+    with pytest.raises(cordon.CordonDenied) as exc:
         _core.govern(req)
     msg = str(exc.value)
     assert "github" in msg

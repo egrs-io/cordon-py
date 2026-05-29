@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 slack_sdk = pytest.importorskip("slack_sdk")
 
@@ -25,13 +25,13 @@ POLICY = {
 @pytest.fixture(autouse=True)
 def _clean():
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 def test_chat_postmessage_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     client = slack_sdk.WebClient(token="xoxb-fake")
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         client.chat_postMessage(channel="#general", text="hi")
     assert exc.value.vendor == "slack"
     assert exc.value.operation == "chat.postMessage"
@@ -42,7 +42,7 @@ def test_chat_postmessage_denied(tmp_path):
 
 
 def test_allowed_call_passes_through(tmp_path, monkeypatch):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     # Mock the lowest-level network method below the chokepoint so the
     # wrapper's call-through actually returns without hitting Slack.
     from slack_sdk.web.base_client import BaseClient
@@ -62,18 +62,18 @@ def test_allowed_call_passes_through(tmp_path, monkeypatch):
 
 
 def test_install_idempotent(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    from egress_security.shims import slack_shim
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    from cordon.shims import slack_shim
 
     slack_shim.install()
     client = slack_sdk.WebClient(token="xoxb-fake")
-    with pytest.raises(EgressSecurityDenied):
+    with pytest.raises(CordonDenied):
         client.chat_postMessage(channel="#x", text="y")
 
 
 def test_uninstall_removes_patch(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    egress_security.uninstall()
-    from egress_security.shims import slack_shim
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.uninstall()
+    from cordon.shims import slack_shim
 
     assert slack_shim._installed is False

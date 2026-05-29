@@ -4,7 +4,7 @@ For a live, paced demo prefer running the three scripts separately so
 you can narrate between them:
 
     python examples/demo/run_unprotected.py    # "this is what happens unprotected"
-    python examples/demo/run_protected.py      # "now with egress_security.init()"
+    python examples/demo/run_protected.py      # "now with cordon.init()"
     python examples/demo/show_audit.py         # "and every decision is recorded"
 
 This combined script is here for a quick "does the whole thing still

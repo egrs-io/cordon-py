@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 DEFAULT_POLICY = (
     Path(__file__).resolve().parent.parent / "policies" / "agent-default.yaml"
@@ -19,12 +19,12 @@ DEFAULT_POLICY = (
 
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path):
-    egress_security.init(
+    cordon.init(
         policy=str(DEFAULT_POLICY),
         audit=str(tmp_path / "audit.jsonl"),
     )
     yield tmp_path
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 def _audit_lines(tmp_path):
@@ -55,13 +55,13 @@ def _gh_requester():
 
 
 def test_default_blocks_github_repo_delete(_isolated):
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         _gh_requester().requestJsonAndCheck("DELETE", "/repos/acme/widget")
     assert exc.value.rule_id == "block-github-repo-delete"
 
 
 def test_default_blocks_github_ref_rewrite(_isolated):
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         _gh_requester().requestJsonAndCheck(
             "PATCH", "/repos/acme/widget/git/refs/heads/main"
         )
@@ -82,20 +82,20 @@ def _aws_client(service):
 
 
 def test_default_blocks_ec2_terminate(_isolated):
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         _aws_client("ec2").terminate_instances(InstanceIds=["i-abc"])
     assert exc.value.rule_id == "block-aws-terminate"
 
 
 def test_default_blocks_s3_delete_bucket(_isolated):
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         _aws_client("s3").delete_bucket(Bucket="b")
     # Could match block-aws-terminate (no) or block-aws-deletes (yes) -- deny wins
     assert exc.value.rule_id == "block-aws-deletes"
 
 
 def test_default_blocks_iam_create_role(_isolated):
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         _aws_client("iam").create_role(
             RoleName="x", AssumeRolePolicyDocument="{}"
         )
@@ -124,7 +124,7 @@ def test_default_allows_benign_aws_call(_isolated):
 def test_default_blocks_secret_exfil_over_requests(_isolated):
     import requests
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         # Allowed host, but body contains an AWS key — secret rule fires.
         requests.post(
             "https://api.github.com/leak",
@@ -136,7 +136,7 @@ def test_default_blocks_secret_exfil_over_requests(_isolated):
 def test_default_blocks_unknown_host_over_requests(_isolated):
     import requests
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         requests.get("https://evil.example/x")
     assert exc.value.rule_id == "block-unknown-egress"
 
@@ -144,7 +144,7 @@ def test_default_blocks_unknown_host_over_requests(_isolated):
 def test_default_blocks_secret_exfil_over_httpx(_isolated):
     import httpx
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         with httpx.Client() as c:
             c.post(
                 "https://api.github.com/leak",
@@ -183,7 +183,7 @@ def test_default_allows_known_host_without_secrets(_isolated):
 def test_default_blocks_curl_shellout(_isolated):
     import subprocess
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["curl", "https://example.com"])
     assert exc.value.rule_id == "block-network-cli-shellout"
 
@@ -191,7 +191,7 @@ def test_default_blocks_curl_shellout(_isolated):
 def test_default_blocks_git_push_shellout(_isolated):
     import subprocess
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["git", "push", "origin", "main"])
     assert exc.value.rule_id == "block-git-network-shellout"
 
@@ -199,7 +199,7 @@ def test_default_blocks_git_push_shellout(_isolated):
 def test_default_blocks_docker_pull_shellout(_isolated):
     import subprocess
 
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["docker", "pull", "alpine"])
     assert exc.value.rule_id == "block-docker-network-shellout"
 

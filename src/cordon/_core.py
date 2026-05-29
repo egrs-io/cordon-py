@@ -13,20 +13,20 @@ import threading
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator
 
-from egress_security.audit import AuditLogger
-from egress_security.canonical import CanonicalRequest
-from egress_security.policy import Policy, load_policy
+from cordon.audit import AuditLogger
+from cordon.canonical import CanonicalRequest
+from cordon.policy import Policy, load_policy
 
-_log = logging.getLogger("egress_security")
+_log = logging.getLogger("cordon")
 
-PACKAGE_NAME = "egress-security"
-
-
-class EgressSecurityError(Exception):
-    """Base exception for egress-security."""
+PACKAGE_NAME = "cordon-sdk"
 
 
-class EgressSecurityDenied(EgressSecurityError):
+class CordonError(Exception):
+    """Base exception for cordon-sdk."""
+
+
+class CordonDenied(CordonError):
     """Raised when an outbound call is denied by policy in enforce mode."""
 
     def __init__(
@@ -41,7 +41,7 @@ class EgressSecurityDenied(EgressSecurityError):
         self.operation = operation
         self.rule_id = rule_id
         self.reason = reason
-        parts = [f"egress-security denied {vendor}"]
+        parts = [f"cordon-sdk denied {vendor}"]
         if operation:
             parts.append(f"::{operation}")
         if rule_id:
@@ -79,7 +79,7 @@ def init(
     mode: str = "enforce",
     on_error: str = "open",
 ) -> None:
-    """Activate egress-security.
+    """Activate cordon-sdk.
 
     Args:
         policy: path to a YAML policy file, or an in-memory policy dict.
@@ -102,7 +102,7 @@ def init(
     cfg.mode = mode
     cfg.on_error = on_error
     _config = cfg
-    from egress_security.shims._registry import install_all
+    from cordon.shims._registry import install_all
 
     cfg.uninstallers = install_all()
 
@@ -169,7 +169,7 @@ def govern(canonical: CanonicalRequest, *, is_catch_all: bool = False) -> None:
     except Exception:
         _handle_internal_error("audit write failed", canonical)
     if decision.action == "deny" and cfg.mode == "enforce":
-        raise EgressSecurityDenied(
+        raise CordonDenied(
             vendor=canonical.vendor,
             operation=canonical.describe(),
             rule_id=decision.rule_id,
@@ -179,6 +179,6 @@ def govern(canonical: CanonicalRequest, *, is_catch_all: bool = False) -> None:
 
 def _handle_internal_error(message: str, canonical: CanonicalRequest) -> None:
     cfg = _config
-    _log.warning("egress-security internal error: %s (vendor=%s)", message, canonical.vendor)
+    _log.warning("cordon-sdk internal error: %s (vendor=%s)", message, canonical.vendor)
     if cfg is not None and cfg.on_error == "closed":
-        raise EgressSecurityError(f"internal error: {message}")
+        raise CordonError(f"internal error: {message}")

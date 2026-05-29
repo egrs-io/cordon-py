@@ -1,6 +1,6 @@
 import pytest
 
-from egress_security.policy import Policy, PolicyError, load_policy
+from cordon.policy import Policy, PolicyError, load_policy
 
 
 def _policy(rules, *, default="allow"):

@@ -1,4 +1,4 @@
-from egress_security.canonical import CanonicalRequest
+from cordon.canonical import CanonicalRequest
 
 
 def test_minimal_construction():
@@ -40,7 +40,7 @@ def test_describe_falls_back_to_vendor():
 
 
 def test_canonical_is_consumable_by_policy_engine():
-    from egress_security.policy import Policy
+    from cordon.policy import Policy
 
     p = Policy(
         {

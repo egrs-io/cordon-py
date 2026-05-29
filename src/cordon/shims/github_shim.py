@@ -13,10 +13,10 @@ from urllib.parse import urlparse
 
 import wrapt
 
-from egress_security import _core
-from egress_security.canonical import CanonicalRequest
+from cordon import _core
+from cordon.canonical import CanonicalRequest
 
-_log = logging.getLogger("egress_security.shims.github")
+_log = logging.getLogger("cordon.shims.github")
 
 _installed = False
 _original: Any = None

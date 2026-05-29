@@ -1,6 +1,6 @@
-# Egress Security demo — the toxic chain
+# Cordon demo — the toxic chain
 
-The canonical before/after for egress-security.
+The canonical before/after for cordon-sdk.
 
 ## The scenario
 
@@ -13,7 +13,7 @@ to:
 
 We run that scenario twice:
 
-| Run            | egress-security | Outcome                                         |
+| Run            | cordon-sdk | Outcome                                         |
 | -------------- | --------------- | ----------------------------------------------- |
 | Unprotected    | not initialized | destructive calls leave the process             |
 | Protected      | active          | destructive calls are blocked **before** egress |
@@ -21,7 +21,7 @@ We run that scenario twice:
 The "agent" is a deterministic scripted stand-in — no Anthropic API key
 required, no model drift between runs. The destructive tools execute
 through real, patched SDKs (`PyGithub` for the DELETE, `requests` for
-the Slack POST), so egress-security actually intercepts them.
+the Slack POST), so cordon-sdk actually intercepts them.
 
 ## Two modes
 

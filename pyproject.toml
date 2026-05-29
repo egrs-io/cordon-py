@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "egress-security"
+name = "cordon-sdk"
 version = "0.1.0"
 description = "Runtime security layer for AI agents: intercept and govern outbound calls before they leave the process."
 readme = "README.md"
@@ -44,11 +44,11 @@ dev = [
 ]
 
 [project.scripts]
-egress-mcp = "egress_mcp.server:main"
+cordon-mcp = "cordon_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/egress-security/egress-security"
-Issues = "https://github.com/egress-security/egress-security/issues"
+Homepage = "https://github.com/egrs-io/cordon-py"
+Issues = "https://github.com/egrs-io/cordon-py/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

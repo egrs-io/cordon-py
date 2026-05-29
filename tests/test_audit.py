@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from egress_security.audit import AuditLogger, redact
+from cordon.audit import AuditLogger, redact
 
 
 def test_redact_replaces_aws_access_key():

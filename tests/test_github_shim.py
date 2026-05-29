@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 github = pytest.importorskip("github")
 responses = pytest.importorskip("responses")
@@ -30,7 +30,7 @@ POLICY = {
 @pytest.fixture(autouse=True)
 def _clean():
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 def _requester():
@@ -52,9 +52,9 @@ def _requester():
 
 
 def test_delete_repo_denied_before_network(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     req = _requester()
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         req.requestJsonAndCheck("DELETE", "/repos/acme/widget")
     assert exc.value.vendor == "github"
     assert "DELETE" in exc.value.operation
@@ -66,7 +66,7 @@ def test_delete_repo_denied_before_network(tmp_path):
 
 @responses.activate
 def test_get_repo_allowed_and_audited(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     responses.add(
         responses.GET,
         "https://api.github.com:443/repos/acme/widget",
@@ -83,24 +83,24 @@ def test_get_repo_allowed_and_audited(tmp_path):
 
 
 def test_install_idempotent(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    from egress_security.shims import github_shim
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    from cordon.shims import github_shim
 
     github_shim.install()
     req = _requester()
-    with pytest.raises(EgressSecurityDenied):
+    with pytest.raises(CordonDenied):
         req.requestJsonAndCheck("DELETE", "/repos/acme/widget")
 
 
 @responses.activate
 def test_uninstall_removes_patch(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
-    egress_security.uninstall()
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.uninstall()
     responses.add(
         responses.DELETE,
         "https://api.github.com:443/repos/acme/widget",
         status=204,
     )
     req = _requester()
-    # After uninstall the call should pass through (no EgressSecurityDenied)
+    # After uninstall the call should pass through (no CordonDenied)
     req.requestJsonAndCheck("DELETE", "/repos/acme/widget")

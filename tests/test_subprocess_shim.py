@@ -2,8 +2,8 @@ import subprocess
 
 import pytest
 
-import egress_security
-from egress_security import EgressSecurityDenied
+import cordon
+from cordon import CordonDenied
 
 POLICY = {
     "version": 1,
@@ -31,9 +31,9 @@ POLICY = {
 
 @pytest.fixture(autouse=True)
 def _clean(tmp_path):
-    egress_security.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
+    cordon.init(policy=POLICY, audit=str(tmp_path / "a.jsonl"))
     yield
-    egress_security.uninstall()
+    cordon.uninstall()
 
 
 def test_allowed_command_runs():
@@ -42,14 +42,14 @@ def test_allowed_command_runs():
 
 
 def test_curl_blocked_by_basename():
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["curl", "https://example.com"])
     assert exc.value.rule_id == "block-curl"
     assert exc.value.operation == "curl"
 
 
 def test_curl_blocked_via_full_path():
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["/usr/bin/curl", "https://example.com"])
     assert exc.value.rule_id == "block-curl"  # operation is basename(argv[0])
 
@@ -57,13 +57,13 @@ def test_curl_blocked_via_full_path():
 def test_shell_true_string_is_parsed():
     # When shell=True and the command is a string, we tokenize it so the
     # policy sees the actual binary, not "/bin/sh".
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run("curl https://example.com", shell=True)
     assert exc.value.rule_id == "block-curl"
 
 
 def test_git_push_blocked_via_body_match():
-    with pytest.raises(EgressSecurityDenied) as exc:
+    with pytest.raises(CordonDenied) as exc:
         subprocess.run(["git", "push", "origin", "main"])
     assert exc.value.rule_id == "block-git-push"
 
@@ -74,19 +74,19 @@ def test_git_non_push_subcommand_not_blocked():
         subprocess.run(["git", "--version"], capture_output=True, timeout=5)
     except FileNotFoundError:
         pytest.skip("git not installed")
-    # If we got here, no EgressSecurityDenied was raised. Test passes.
+    # If we got here, no CordonDenied was raised. Test passes.
 
 
 def test_install_is_idempotent():
-    from egress_security.shims import subprocess_shim
+    from cordon.shims import subprocess_shim
 
     subprocess_shim.install()  # second call should be a no-op
-    with pytest.raises(EgressSecurityDenied):
+    with pytest.raises(CordonDenied):
         subprocess.run(["curl", "x"])
 
 
 def test_uninstall_removes_patch():
-    egress_security.uninstall()
-    from egress_security.shims import subprocess_shim
+    cordon.uninstall()
+    from cordon.shims import subprocess_shim
 
     assert subprocess_shim._installed is False

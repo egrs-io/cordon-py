@@ -1,4 +1,4 @@
-"""Run the agent WITHOUT egress-security.
+"""Run the agent WITHOUT cordon-sdk.
 
 Use this in a live demo as the "before" half of the before/after.
 With --live the agent actually deletes a fresh disposable GitHub repo
@@ -30,7 +30,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help=(
             "Run against real GitHub and Slack. Requires env vars "
-            "EGRESS_DEMO_GITHUB_TOKEN and EGRESS_DEMO_SLACK_WEBHOOK. "
+            "CORDON_DEMO_GITHUB_TOKEN and CORDON_DEMO_SLACK_WEBHOOK. "
             "Auto-creates a disposable repo to delete."
         ),
     )
@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.live:
         subtitle += f"  (target repo: {get_config().github_target})"
     banner(
-        f"UNPROTECTED [{mode_tag}]  -  egress-security is NOT initialized",
+        f"UNPROTECTED [{mode_tag}]  -  cordon-sdk is NOT initialized",
         subtitle,
         YELLOW,
     )

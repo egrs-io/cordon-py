@@ -3,7 +3,7 @@
 # Create a fresh disposable GitHub repo for a live demo run.
 #
 # Usage:
-#   export EGRESS_DEMO_GITHUB_TOKEN=ghp_...
+#   export CORDON_DEMO_GITHUB_TOKEN=ghp_...
 #   ./examples/demo/setup_repo.sh
 #
 # On success: prints the new repo's full_name (owner/name) on stdout.
@@ -15,9 +15,9 @@
 # delete it later.
 set -euo pipefail
 
-if [[ -z "${EGRESS_DEMO_GITHUB_TOKEN:-}" ]]; then
-  echo "error: EGRESS_DEMO_GITHUB_TOKEN is not set" >&2
-  echo "  export EGRESS_DEMO_GITHUB_TOKEN=ghp_..." >&2
+if [[ -z "${CORDON_DEMO_GITHUB_TOKEN:-}" ]]; then
+  echo "error: CORDON_DEMO_GITHUB_TOKEN is not set" >&2
+  echo "  export CORDON_DEMO_GITHUB_TOKEN=ghp_..." >&2
   exit 2
 fi
 
@@ -33,9 +33,9 @@ name="egress-demo-$(date +%s)"
 response=$(curl -sS -w "\n%{http_code}" \
   -X POST https://api.github.com/user/repos \
   -H "Accept: application/vnd.github+json" \
-  -H "Authorization: Bearer ${EGRESS_DEMO_GITHUB_TOKEN}" \
+  -H "Authorization: Bearer ${CORDON_DEMO_GITHUB_TOKEN}" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  -d "{\"name\":\"${name}\",\"private\":${private},\"auto_init\":true,\"description\":\"disposable repo for an egress-security demo run -- safe to delete\"}")
+  -d "{\"name\":\"${name}\",\"private\":${private},\"auto_init\":true,\"description\":\"disposable repo for an cordon-sdk demo run -- safe to delete\"}")
 
 http_code=$(echo "$response" | tail -n1)
 body=$(echo "$response" | sed '$d')

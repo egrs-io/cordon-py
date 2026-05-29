@@ -1,8 +1,8 @@
-# Egress Security
+# Cordon
 
 > Runtime security for AI agents — stops dangerous actions **before they leave the process**.
 
-Egress Security is a Python library that wraps the SDKs an AI agent uses
+Cordon is a Python library that wraps the SDKs an AI agent uses
 (`boto3`, `PyGithub`, `slack_sdk`, `requests`, `httpx`) and evaluates every
 outbound call against a YAML policy. Destructive actions — deleting a
 repository, terminating EC2 instances, attaching IAM policies, exfiltrating
@@ -11,12 +11,12 @@ credentials over HTTP — are blocked at the chokepoint and audited.
 **One line activates it:**
 
 ```python
-import egress_security
-egress_security.init()
+import cordon
+cordon.init()
 ```
 
 After that, any patched SDK call goes through the policy. Allowed calls
-behave normally; denied calls raise `EgressSecurityDenied` and are recorded
+behave normally; denied calls raise `CordonDenied` and are recorded
 to a JSONL audit log.
 
 ---
@@ -116,7 +116,7 @@ for the full default pack.
 ## Public API
 
 ```python
-egress_security.init(
+cordon.init(
     policy = "policies/agent-default.yaml",   # path or in-memory dict
     audit  = "egress-audit.jsonl",             # path; None disables file sink
     audit_stdout = False,                       # also write to stdout
@@ -124,9 +124,9 @@ egress_security.init(
     on_error = "open",                          # internal-error behavior (see below)
 )
 
-egress_security.uninstall()                     # remove all patches
+cordon.uninstall()                     # remove all patches
 
-class EgressSecurityDenied(EgressSecurityError):
+class CordonDenied(CordonError):
     vendor: str
     operation: str | None
     rule_id: str | None
@@ -135,10 +135,10 @@ class EgressSecurityDenied(EgressSecurityError):
 
 **Modes**
 
-- `enforce` (default): denied calls raise `EgressSecurityDenied`.
+- `enforce` (default): denied calls raise `CordonDenied`.
 - `monitor`: every call is audited with its decision, but nothing is blocked.
 
-**`on_error`** governs what happens if egress-security's *own* code throws an
+**`on_error`** governs what happens if cordon-sdk's *own* code throws an
 internal error (a bug, a malformed policy, an audit write failure):
 
 - `open` (default): log a warning and call through, so the host application
@@ -170,7 +170,7 @@ python examples/demo/run_demo.py
 
 It runs the "toxic chain" twice — an AI agent reads a poisoned GitHub
 issue and tries to delete a repo and exfiltrate a credential. The first
-pass has egress-security off; the second has it on. The contrast is the
+pass has cordon-sdk off; the second has it on. The contrast is the
 whole pitch. See `examples/demo/README.md` for details.
 
 ## Tests

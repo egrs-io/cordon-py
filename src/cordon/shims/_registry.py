@@ -12,16 +12,16 @@ import importlib
 import logging
 from typing import Callable
 
-_log = logging.getLogger("egress_security.shims")
+_log = logging.getLogger("cordon.shims")
 
 # Each entry: (module name to import, "install" attribute to call)
 _SHIM_MODULES = (
-    "egress_security.shims.boto3_shim",
-    "egress_security.shims.github_shim",
-    "egress_security.shims.slack_shim",
-    "egress_security.shims.subprocess_shim",
-    "egress_security.shims.requests_shim",
-    "egress_security.shims.httpx_shim",
+    "cordon.shims.boto3_shim",
+    "cordon.shims.github_shim",
+    "cordon.shims.slack_shim",
+    "cordon.shims.subprocess_shim",
+    "cordon.shims.requests_shim",
+    "cordon.shims.httpx_shim",
 )
 
 

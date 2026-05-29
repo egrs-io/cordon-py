@@ -1,7 +1,7 @@
 version: 1
 default: allow
 
-# Default policy pack for egress-security v0.1.
+# Default policy pack for cordon-sdk v0.1.
 #
 # Rules are evaluated in order. Deny wins: if any rule matches with action
 # deny, the call is blocked regardless of any earlier allow match.
