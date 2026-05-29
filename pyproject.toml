@@ -22,7 +22,7 @@ classifiers = [
   "Topic :: Security",
 ]
 dependencies = [
-  "wrapt>=1.15,<2",
+  "wrapt>=1.15,<3",
   "PyYAML>=6.0,<7",
 ]
 
